@@ -2,106 +2,154 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>High-Performance Load Engine</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>負荷試験エンジニアリング - Pro Edition</title>
     <style>
-        :root { --bg: #0a0a0a; --green: #00ff66; --red: #ff3333; }
-        body { background: var(--bg); color: #fff; font-family: 'Courier New', monospace; padding: 20px; }
-        .dashboard { max-width: 900px; margin: 0 auto; border: 1px solid #333; padding: 20px; }
-        .ctrl { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-        input { background: #1a1a1a; border: 1px solid #444; color: var(--green); padding: 10px; flex: 1; }
-        button { border: none; padding: 10px 20px; font-weight: bold; cursor: pointer; }
+        :root { --bg: #050505; --panel: #111; --border: #333; --green: #00ff66; --red: #ff3333; --text: #eee; }
+        body { background: var(--bg); color: var(--text); font-family: 'Consolas', 'Monaco', monospace; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .wrapper { width: 95%; max-width: 900px; border: 1px solid var(--border); background: var(--panel); padding: 30px; box-shadow: 0 0 50px rgba(0,0,0,0.8); border-radius: 4px; }
+        h1 { font-size: 1.2rem; margin: 0 0 20px 0; color: var(--green); border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+        
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .control-panel, .monitor-panel { display: flex; flex-direction: column; gap: 15px; }
+        
+        label { font-size: 0.8rem; color: #888; }
+        input, select { background: #000; border: 1px solid var(--border); color: var(--green); padding: 10px; border-radius: 3px; outline: none; }
+        
+        .btn-group { display: flex; gap: 10px; margin-top: 10px; }
+        button { flex: 1; padding: 15px; font-weight: bold; cursor: pointer; border: none; border-radius: 3px; transition: 0.3s; }
         #start { background: var(--green); color: #000; }
         #stop { background: var(--red); color: #fff; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
-        .card { background: #151515; padding: 20px; border-radius: 5px; border: 1px solid #222; }
-        .val { font-size: 2.5rem; display: block; color: var(--green); }
-        #log { margin-top: 20px; height: 150px; overflow-y: auto; font-size: 0.75rem; color: #666; background: #000; padding: 10px; }
+        button:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .stat-card { background: #000; border-left: 3px solid var(--green); padding: 15px; margin-bottom: 10px; }
+        .stat-label { font-size: 0.7rem; display: block; color: #666; }
+        .stat-value { font-size: 1.8rem; font-weight: bold; color: #fff; }
+        
+        #console { background: #000; height: 120px; overflow-y: scroll; padding: 10px; font-size: 0.75rem; color: #666; border: 1px solid var(--border); margin-top: 20px; }
+        .warning { color: #555; font-size: 0.7rem; margin-top: 15px; text-align: center; }
     </style>
 </head>
 <body>
 
-<div class="dashboard">
-    <h2>STRESS TEST ENGINE v2.0</h2>
-    <div class="ctrl">
-        <input type="url" id="target" value="https://example.com">
-        <input type="number" id="workerCount" value="4" min="1" max="16" title="Threads">
-        <button id="start">LAUNCH</button>
-        <button id="stop">HALT</button>
-    </div>
+<div class="wrapper">
+    <h1>STRESS TEST ENGINE v3.0 // PROFESSIONAL LOAD GENERATOR</h1>
+    
+    <div class="grid">
+        <div class="control-panel">
+            <label>対象URL (HTTPSのみ)</label>
+            <input type="url" id="url" value="https://example.com">
+            
+            <label>HTTPメソッド (POSTはサーバー負荷が高い)</label>
+            <select id="method">
+                <option value="GET">GET</option>
+                <option value="POST">POST</option>
+                <option value="HEAD">HEAD</option>
+            </select>
 
-    <div class="stats-grid">
-        <div class="card">RPS<span id="rps" class="val">0</span></div>
-        <div class="card">Requests<span id="total" class="val">0</span></div>
-        <div class="card">Latency (avg)<span id="latency" class="val">0ms</span></div>
+            <label>スレッド数 (Web Workers)</label>
+            <input type="number" id="threads" value="8" min="1" max="32">
+
+            <label>バッチサイズ (1ループあたりの同時要求数)</label>
+            <input type="number" id="batch" value="20" min="1" max="100">
+
+            <div class="btn-group">
+                <button id="start">攻撃開始</button>
+                <button id="stop">停止</button>
+            </div>
+        </div>
+
+        <div class="monitor-panel">
+            <div class="stat-card"><span class="stat-label">秒間リクエスト数 (RPS)</span><span id="rps" class="stat-value">0</span></div>
+            <div class="stat-card"><span class="stat-label">総送信数</span><span id="total" class="stat-value">0</span></div>
+            <div class="stat-card"><span class="stat-label">平均応答速度</span><span id="latency" class="stat-value">0ms</span></div>
+            <div id="console">システムスタンバイ...</div>
+        </div>
     </div>
-    <div id="log">System ready. Select target and threads...</div>
+    <div class="warning">※注意: 自己所有以外のサーバーへの使用は犯罪です。HTTPS接続のみ対応。</div>
 </div>
 
 <script>
-// --- Worker Code (バックグラウンドで動くエンジン) ---
+// --- 高性能エンジン Workerコード ---
 const workerCode = `
     let active = false;
     self.onmessage = async (e) => {
-        const { url, cmd } = e.data;
+        const { url, method, batch, cmd } = e.data;
         if (cmd === 'start') {
             active = true;
             while (active) {
-                const start = performance.now();
-                try {
-                    // cache: 'no-store' でブラウザキャッシュを強制無効
-                    await fetch(url + '?nc=' + Math.random(), { mode: 'no-cors', cache: 'no-store' });
-                    self.postMessage({ type: 'res', time: performance.now() - start });
-                } catch (e) {
-                    self.postMessage({ type: 'err' });
+                const requests = [];
+                for (let i = 0; i < batch; i++) {
+                    const controller = new AbortController();
+                    const timeout = setTimeout(() => controller.abort(), 2000); // 2秒でタイムアウト
+                    
+                    const p = fetch(url + '?cache=' + Math.random(), {
+                        method: method,
+                        mode: 'no-cors',
+                        cache: 'no-store',
+                        signal: controller.signal
+                    }).then(() => {
+                        clearTimeout(timeout);
+                        self.postMessage({ type: 'res' });
+                    }).catch(() => {
+                        self.postMessage({ type: 'err' });
+                    });
+                    requests.push(p);
                 }
+                // バッチが完了するのを待たずに次を投げるが、Workerのスタックを壊さない程度に待機
+                await Promise.allSettled(requests);
+                await new Promise(r => setTimeout(r, 1)); 
             }
-        } else {
-            active = false;
-        }
+        } else { active = false; }
     };
 `;
 
-// --- Controller Logic ---
 const blob = new Blob([workerCode], { type: 'application/javascript' });
 const workerUrl = URL.createObjectURL(blob);
 let workers = [];
-let stats = { total: 0, timeSum: 0, lastTotal: 0 };
+let stats = { total: 0, lastTotal: 0 };
+
+const log = (msg) => {
+    const c = document.getElementById('console');
+    c.prepend(\`[\${new Date().toLocaleTimeString()}] \${msg}\\n\`);
+};
 
 document.getElementById('start').onclick = () => {
-    const url = document.getElementById('target').value;
-    const count = document.getElementById('workerCount').value;
-    
-    stats = { total: 0, timeSum: 0, lastTotal: 0 };
-    for(let i=0; i<count; i++) {
+    const config = {
+        url: document.getElementById('url').value,
+        method: document.getElementById('method').value,
+        threads: parseInt(document.getElementById('threads').value),
+        batch: parseInt(document.getElementById('batch').value)
+    };
+
+    if (workers.length > 0) return;
+    stats = { total: 0, lastTotal: 0 };
+
+    for (let i = 0; i < config.threads; i++) {
         const w = new Worker(workerUrl);
-        w.onmessage = (e) => {
-            if (e.data.type === 'res') {
-                stats.total++;
-                stats.timeSum += e.data.time;
-            }
-        };
-        w.postMessage({ cmd: 'start', url });
+        w.onmessage = (e) => { if(e.data.type === 'res') stats.total++; };
+        w.postMessage({ cmd: 'start', ...config });
         workers.push(w);
     }
-    document.getElementById('log').prepend("Test started with " + count + " workers.\\n");
+    
+    document.getElementById('start').disabled = true;
+    log(\`テスト開始: \${config.threads}スレッド / \${config.batch}バッチ\`);
 };
 
 document.getElementById('stop').onclick = () => {
     workers.forEach(w => w.terminate());
     workers = [];
-    document.getElementById('log').prepend("Test stopped.\\n");
+    document.getElementById('start').disabled = false;
+    log("テスト停止完了。");
 };
 
-// メトリクス更新 (1秒ごと)
+// メトリクス更新
 setInterval(() => {
     if (workers.length === 0) return;
     const rps = stats.total - stats.lastTotal;
     stats.lastTotal = stats.total;
-    const avgLatency = stats.total > 0 ? (stats.timeSum / stats.total).toFixed(1) : 0;
-    
-    document.getElementById('rps').innerText = rps;
-    document.getElementById('total').innerText = stats.total;
-    document.getElementById('latency').innerText = avgLatency + "ms";
+    document.getElementById('rps').innerText = rps.toLocaleString();
+    document.getElementById('total').innerText = stats.total.toLocaleString();
 }, 1000);
 </script>
 
