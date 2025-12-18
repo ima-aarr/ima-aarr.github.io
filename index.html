@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>High-Performance Load Engine</title>
+    <style>
+        :root { --bg: #0a0a0a; --green: #00ff66; --red: #ff3333; }
+        body { background: var(--bg); color: #fff; font-family: 'Courier New', monospace; padding: 20px; }
+        .dashboard { max-width: 900px; margin: 0 auto; border: 1px solid #333; padding: 20px; }
+        .ctrl { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        input { background: #1a1a1a; border: 1px solid #444; color: var(--green); padding: 10px; flex: 1; }
+        button { border: none; padding: 10px 20px; font-weight: bold; cursor: pointer; }
+        #start { background: var(--green); color: #000; }
+        #stop { background: var(--red); color: #fff; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        .card { background: #151515; padding: 20px; border-radius: 5px; border: 1px solid #222; }
+        .val { font-size: 2.5rem; display: block; color: var(--green); }
+        #log { margin-top: 20px; height: 150px; overflow-y: auto; font-size: 0.75rem; color: #666; background: #000; padding: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="dashboard">
+    <h2>STRESS TEST ENGINE v2.0</h2>
+    <div class="ctrl">
+        <input type="url" id="target" value="https://example.com">
+        <input type="number" id="workerCount" value="4" min="1" max="16" title="Threads">
+        <button id="start">LAUNCH</button>
+        <button id="stop">HALT</button>
+    </div>
+
+    <div class="stats-grid">
+        <div class="card">RPS<span id="rps" class="val">0</span></div>
+        <div class="card">Requests<span id="total" class="val">0</span></div>
+        <div class="card">Latency (avg)<span id="latency" class="val">0ms</span></div>
+    </div>
+    <div id="log">System ready. Select target and threads...</div>
+</div>
+
+<script>
+// --- Worker Code (バックグラウンドで動くエンジン) ---
+const workerCode = `
+    let active = false;
+    self.onmessage = async (e) => {
+        const { url, cmd } = e.data;
+        if (cmd === 'start') {
+            active = true;
+            while (active) {
+                const start = performance.now();
+                try {
+                    // cache: 'no-store' でブラウザキャッシュを強制無効
+                    await fetch(url + '?nc=' + Math.random(), { mode: 'no-cors', cache: 'no-store' });
+                    self.postMessage({ type: 'res', time: performance.now() - start });
+                } catch (e) {
+                    self.postMessage({ type: 'err' });
+                }
+            }
+        } else {
+            active = false;
+        }
+    };
+`;
+
+// --- Controller Logic ---
+const blob = new Blob([workerCode], { type: 'application/javascript' });
+const workerUrl = URL.createObjectURL(blob);
+let workers = [];
+let stats = { total: 0, timeSum: 0, lastTotal: 0 };
+
+document.getElementById('start').onclick = () => {
+    const url = document.getElementById('target').value;
+    const count = document.getElementById('workerCount').value;
+    
+    stats = { total: 0, timeSum: 0, lastTotal: 0 };
+    for(let i=0; i<count; i++) {
+        const w = new Worker(workerUrl);
+        w.onmessage = (e) => {
+            if (e.data.type === 'res') {
+                stats.total++;
+                stats.timeSum += e.data.time;
+            }
+        };
+        w.postMessage({ cmd: 'start', url });
+        workers.push(w);
+    }
+    document.getElementById('log').prepend("Test started with " + count + " workers.\\n");
+};
+
+document.getElementById('stop').onclick = () => {
+    workers.forEach(w => w.terminate());
+    workers = [];
+    document.getElementById('log').prepend("Test stopped.\\n");
+};
+
+// メトリクス更新 (1秒ごと)
+setInterval(() => {
+    if (workers.length === 0) return;
+    const rps = stats.total - stats.lastTotal;
+    stats.lastTotal = stats.total;
+    const avgLatency = stats.total > 0 ? (stats.timeSum / stats.total).toFixed(1) : 0;
+    
+    document.getElementById('rps').innerText = rps;
+    document.getElementById('total').innerText = stats.total;
+    document.getElementById('latency').innerText = avgLatency + "ms";
+}, 1000);
+</script>
+
+</body>
+</html>
